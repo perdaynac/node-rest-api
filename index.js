@@ -10,8 +10,11 @@ const http = require('http');
 const https = require('https');
 const url = require('url');
 const StringDecoder = require('string_decoder').StringDecoder;
-const config = require('./config');
+const config = require('./lib/config');
 const fs = require('fs');
+const handlers = require('./lib/handlers');
+const helpers = require('./lib/helpers');
+
 
 
 // Instantiating HTTP server
@@ -55,26 +58,26 @@ httpsServer.listen(config.httpsPort, function() {
 let unifiedServer = function (req, res) {
 
     // Get Url and parse it
-    var parsedUrl = url.parse(req.url, true);
+    let parsedUrl = url.parse(req.url, true);
 
     // Get the path
-    var path = parsedUrl.pathname;
-    var trimmedPath = path.replace(/^\/+|\/+$/g, '');
+    let path = parsedUrl.pathname;
+    let trimmedPath = path.replace(/^\/+|\/+$/g, '');
 
 
     // Get the query string as an object
-    var queryStringObject = parsedUrl.query;
+    let queryStringObject = parsedUrl.query;
 
 
     // Get HTTP method
-    var method = req.method.toLowerCase();
+    let method = req.method.toLowerCase();
 
     // Get the headers as an object
-    var headers = req.headers;
+    let headers = req.headers;
 
     // Set the payload, if any
-    var decoder = new StringDecoder('utf-8');
-    var buffer = '';
+    let decoder = new StringDecoder('utf-8');
+    let buffer = '';
     req.on('data', function(data) {
     
         buffer += decoder.write(data);
@@ -87,17 +90,21 @@ let unifiedServer = function (req, res) {
 
         // Choose the handler this request should go to
         // If one is not found, use the notFound handler
-        var chosenHandler = typeof(router[trimmedPath]) !== 'undefined' ? router[trimmedPath] : handlers.notFound;
+        let chosenHandler = typeof(router[trimmedPath]) !== 'undefined' ? router[trimmedPath] : handlers.notFound;
+
+        console.log("Trimmed path: " + trimmedPath);
+        console.log("Type of: "+ typeof(router[trimmedPath]));
+        console.log("Type of helpers.x: " + typeof(helpers.x));
+        console.log("Type of handlers.x: " + typeof(handlers.x));
 
         // Construct the data object to send to the handler
-        var data = {
+        let data = {
 
             'trimmedPath' : trimmedPath,
             'queryStringObject' : queryStringObject,
             'method' : method,
             'headers' : headers,
-            'payload' : buffer,
-
+            'payload' : helpers.parseJsonToObject(buffer)
 
         };
 
@@ -113,7 +120,7 @@ let unifiedServer = function (req, res) {
 
 
             // Convert the payload to a string
-            payloadString = JSON.stringify(payload);
+            let payloadString = JSON.stringify(payload);
 
             // Return the response
             res.setHeader('Content-Type', 'application/json');
@@ -133,35 +140,9 @@ let unifiedServer = function (req, res) {
 }
 
 
-
-
-// Define the handlers
-var handlers = {};
-
-
-handlers.sample = function(data, callback) {
-    // Callback a http status code and a payload object
-
-    callback(406, {'name' : 'sample handler'})
-};
-
-handlers.ping = function(data, callback) {
-    // Callback a http status code and a payload object
-
-    callback(200)
-};
-
-handlers.notFound = function(data, callback) {
-
-  callback(404);
-
-};
-
-
 // Define a request router
-var router = {
-  
+let router = {
   'sample' : handlers.sample,
-  'ping' : handlers.ping
-
+  'ping' : handlers.ping,
+  'users' : handlers.users
 }
